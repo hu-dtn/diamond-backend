@@ -2,10 +2,22 @@ import express from "express";
 import cors from "cors";
 import { PrismaClient } from './generated/prisma/index.js';
 
+// Initialize Express and Prisma
 const app = express();
 const prisma = new PrismaClient();
-app.use(cors());
+
+// Configure CORS to only allow specific origins
+app.use(cors({
+  origin: ["http://localhost:3000", "https://your-vercel-domain.vercel.app"],
+}));
+
+// Use Express's built-in JSON middleware to parse incoming requests
 app.use(express.json());
+
+// A simple welcome route
+app.get('/', (req, res) => {
+  res.send('Welcome to the Diamonds API!');
+});
 
 // Main /diamonds endpoint with all filters and sorting
 app.get("/diamonds", async (req, res) => {
@@ -88,7 +100,31 @@ app.post("/diamonds", async (req, res) => {
   }
 });
 
-app.listen(4000, () => console.log("Backend running on http://localhost:4000"));
+// friendly base route
+app.get("/", (req, res) => {
+  res.send("✅ DTN API is running. Try /health and /diamonds");
+});
 
+// lightweight health check
+app.get("/health", (req, res) => {
+  res.json({
+    ok: true,
+    uptime: process.uptime(),
+    env: process.env.NODE_ENV || "production",
+    version: process.env.npm_package_version || "0.0.0",
+  });
+});
+
+// optional: DB health (proves Prisma ↔ Supabase)
+app.get("/health/db", async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+// Start the server
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
